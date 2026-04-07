@@ -17,7 +17,7 @@
 #include <linux/pci.h>
 #include <linux/printk.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -1417,7 +1417,7 @@ static int bcm4377_check_bdaddr(struct bcm4377_data *bcm4377)
 
 	bda = (struct hci_rp_read_bd_addr *)skb->data;
 	if (!bcm4377_is_valid_bdaddr(bcm4377, &bda->bdaddr))
-		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &bcm4377->hdev->quirks);
+		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, bcm4377->hdev->quirk_flags);
 
 	kfree_skb(skb);
 	return 0;
@@ -2369,11 +2369,11 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hdev->setup = bcm4377_hci_setup;
 
 	if (bcm4377->hw->broken_mws_transport_config)
-		set_bit(HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG, &hdev->quirks);
+		set_bit(HCI_QUIRK_BROKEN_MWS_TRANSPORT_CONFIG, hdev->quirk_flags);
 	if (bcm4377->hw->broken_ext_scan)
-		set_bit(HCI_QUIRK_BROKEN_EXT_SCAN, &hdev->quirks);
+		set_bit(HCI_QUIRK_BROKEN_EXT_SCAN, hdev->quirk_flags);
 	if (bcm4377->hw->broken_le_coded)
-		set_bit(HCI_QUIRK_BROKEN_LE_CODED, &hdev->quirks);
+		set_bit(HCI_QUIRK_BROKEN_LE_CODED, hdev->quirk_flags);
 
 	pci_set_drvdata(pdev, bcm4377);
 	hci_set_drvdata(hdev, bcm4377);

@@ -117,7 +117,7 @@ static int btqcomsmd_setup(struct hci_dev *hdev)
 	/* Devices do not have persistent storage for BD address. Retrieve
 	 * it from the firmware node property.
 	 */
-	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
+	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, hdev->quirk_flags);
 
 	return 0;
 }

@@ -8,7 +8,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
@@ -871,7 +871,7 @@ static int btmtkuart_probe(struct serdev_device *serdev)
 	SET_HCIDEV_DEV(hdev, &serdev->dev);
 
 	hdev->manufacturer = 70;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, hdev->quirk_flags);
 
 	if (btmtkuart_is_standalone(bdev)) {
 		err = clk_prepare_enable(bdev->osc);

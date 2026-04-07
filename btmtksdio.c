@@ -10,7 +10,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -1132,7 +1132,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 		}
 
 		/* Enable WBS with mSBC codec */
-		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, hdev->quirk_flags);
 
 		/* Enable GPIO reset mechanism */
 		if (bdev->reset) {
@@ -1145,7 +1145,7 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 		}
 
 		/* Valid LE States quirk for MediaTek 7921 */
-		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
+		set_bit(HCI_QUIRK_VALID_LE_STATES, hdev->quirk_flags);
 
 		break;
 	case 0x7663:
@@ -1248,47 +1248,6 @@ static int btmtksdio_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
-static void btmtksdio_cmd_timeout(struct hci_dev *hdev)
-{
-	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
-	u32 status;
-	int err;
-
-	if (!bdev->reset || bdev->data->chipid != 0x7921)
-		return;
-
-	pm_runtime_get_sync(bdev->dev);
-
-	if (test_and_set_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
-		return;
-
-	sdio_claim_host(bdev->func);
-
-	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
-	skb_queue_purge(&bdev->txq);
-	cancel_work_sync(&bdev->txrx_work);
-
-	gpiod_set_value_cansleep(bdev->reset, 1);
-	msleep(100);
-	gpiod_set_value_cansleep(bdev->reset, 0);
-
-	err = readx_poll_timeout(btmtksdio_chcr_query, bdev, status,
-				 status & BT_RST_DONE, 100000, 2000000);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to reset (%d)", err);
-		goto err;
-	}
-
-	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);
-err:
-	sdio_release_host(bdev->func);
-
-	pm_runtime_put_noidle(bdev->dev);
-	pm_runtime_disable(bdev->dev);
-
-	hci_reset_dev(hdev);
-}
-
 static bool btmtksdio_sdio_inband_wakeup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1357,7 +1316,6 @@ static int btmtksdio_probe(struct sdio_func *func,
 
 	hdev->open     = btmtksdio_open;
 	hdev->close    = btmtksdio_close;
-	hdev->cmd_timeout = btmtksdio_cmd_timeout;
 	hdev->flush    = btmtksdio_flush;
 	hdev->setup    = btmtksdio_setup;
 	hdev->shutdown = btmtksdio_shutdown;
@@ -1376,7 +1334,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	SET_HCIDEV_DEV(hdev, &func->dev);
 
 	hdev->manufacturer = 70;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, hdev->quirk_flags);
 
 	sdio_set_drvdata(func, bdev);
 

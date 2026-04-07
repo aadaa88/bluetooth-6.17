@@ -32,7 +32,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
 #include <linux/mutex.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -1636,37 +1636,6 @@ static void qca_hw_error(struct hci_dev *hdev, u8 code)
 	clear_bit(QCA_HW_ERROR_EVENT, &qca->flags);
 }
 
-static void qca_cmd_timeout(struct hci_dev *hdev)
-{
-	struct hci_uart *hu = hci_get_drvdata(hdev);
-	struct qca_data *qca = hu->priv;
-
-	set_bit(QCA_SSR_TRIGGERED, &qca->flags);
-	if (qca->memdump_state == QCA_MEMDUMP_IDLE) {
-		set_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
-		qca_send_crashbuffer(hu);
-		qca_wait_for_dump_collection(hdev);
-	} else if (qca->memdump_state == QCA_MEMDUMP_COLLECTING) {
-		/* Let us wait here until memory dump collected or
-		 * memory dump timer expired.
-		 */
-		bt_dev_info(hdev, "waiting for dump to complete");
-		qca_wait_for_dump_collection(hdev);
-	}
-
-	mutex_lock(&qca->hci_memdump_lock);
-	if (qca->memdump_state != QCA_MEMDUMP_COLLECTED) {
-		qca->memdump_state = QCA_MEMDUMP_TIMEOUT;
-		if (!test_bit(QCA_HW_ERROR_EVENT, &qca->flags)) {
-			/* Inject hw error event to reset the device
-			 * and driver.
-			 */
-			hci_reset_dev(hu->hdev);
-		}
-	}
-	mutex_unlock(&qca->hci_memdump_lock);
-}
-
 static bool qca_wakeup(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
@@ -1856,7 +1825,7 @@ static int qca_setup(struct hci_uart *hu)
 	/* Enable controller to do both LE scan and BR/EDR inquiry
 	 * simultaneously.
 	 */
-	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
+	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, hdev->quirk_flags);
 
 	switch (soc_type) {
 	case QCA_QCA2066:
@@ -1909,7 +1878,7 @@ retry:
 		 * only if that property exist in DT.
 		 */
 		if (fwnode_property_present(dev_fwnode(hdev->dev.parent), "local-bd-address")) {
-			set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
+			set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, hdev->quirk_flags);
 			bt_dev_info(hdev, "setting quirk bit to read BDA from fwnode later");
 		} else {
 			bt_dev_dbg(hdev, "local-bd-address` is not present in the devicetree so not setting quirk bit for BDA");
@@ -1960,7 +1929,6 @@ retry:
 		clear_bit(QCA_IBS_DISABLED, &qca->flags);
 		qca_debugfs_init(hdev);
 		hu->hdev->hw_error = qca_hw_error;
-		hu->hdev->cmd_timeout = qca_cmd_timeout;
 		if (device_can_wakeup(hu->serdev->ctrl->dev.parent))
 			hu->hdev->wakeup = qca_wakeup;
 	} else if (ret == -ENOENT) {
@@ -2184,7 +2152,6 @@ static int qca_power_off(struct hci_dev *hdev)
 	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 
 	hu->hdev->hw_error = NULL;
-	hu->hdev->cmd_timeout = NULL;
 
 	del_timer_sync(&qca->wake_retrans_timer);
 	del_timer_sync(&qca->tx_idle_timer);
@@ -2386,7 +2353,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	hdev = qcadev->serdev_hu.hdev;
 
 	if (power_ctrl_enabled) {
-		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, hdev->quirk_flags);
 		hdev->shutdown = qca_power_off;
 	}
 
@@ -2396,10 +2363,10 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		 */
 		if (data->capabilities & QCA_CAP_WIDEBAND_SPEECH)
 			set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
-				&hdev->quirks);
+				hdev->quirk_flags);
 
 		if (data->capabilities & QCA_CAP_VALID_LE_STATES)
-			set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
+			set_bit(HCI_QUIRK_VALID_LE_STATES, hdev->quirk_flags);
 	}
 
 	return 0;

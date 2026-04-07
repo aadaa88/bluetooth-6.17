@@ -152,7 +152,7 @@ static int hci_uart_close(struct hci_dev *hdev)
 	 * BT SOC is completely powered OFF during BT OFF, holding port
 	 * open may drain the battery.
 	 */
-	if (test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks)) {
+	if (test_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, hdev->quirk_flags)) {
 		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
 		serdev_device_close(hu->serdev);
 	}
@@ -357,13 +357,13 @@ int hci_uart_register_device(struct hci_uart *hu,
 	SET_HCIDEV_DEV(hdev, &hu->serdev->dev);
 
 	if (test_bit(HCI_UART_NO_SUSPEND_NOTIFIER, &hu->flags))
-		set_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, &hdev->quirks);
+		set_bit(HCI_QUIRK_NO_SUSPEND_NOTIFIER, hdev->quirk_flags);
 
 	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
-		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
+		set_bit(HCI_QUIRK_RAW_DEVICE, hdev->quirk_flags);
 
 	if (test_bit(HCI_UART_EXT_CONFIG, &hu->hdev_flags))
-		set_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks);
+		set_bit(HCI_QUIRK_EXTERNAL_CONFIG, hdev->quirk_flags);
 
 	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
 		hdev->dev_type = HCI_AMP;

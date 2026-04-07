@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -444,7 +444,7 @@ static int nokia_setup(struct hci_uart *hu)
 
 	if (btdev->man_id == NOKIA_ID_BCM2048) {
 		hu->hdev->set_bdaddr = btbcm_set_bdaddr;
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+		set_bit(HCI_QUIRK_INVALID_BDADDR, hu->hdev->quirk_flags);
 		dev_dbg(dev, "bcm2048 has invalid bluetooth address!");
 	}
 
